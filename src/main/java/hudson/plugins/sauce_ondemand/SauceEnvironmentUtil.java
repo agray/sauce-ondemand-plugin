@@ -114,6 +114,7 @@ public class SauceEnvironmentUtil {
         JSONObject config = new JSONObject();
         try {
             config.put("os", browserInstance.getOs());
+            config.put("platform", browserInstance.getPlatform().toString());
             config.put("browser", browserInstance.getBrowserName());
             config.put("browser-version", browserInstance.getVersion());
             config.put("long-name", browserInstance.getLongName());
@@ -165,7 +166,11 @@ public class SauceEnvironmentUtil {
 
     public static void outputEnvironmentVariable(Map<String, String> env, String key, String value, boolean overwrite) {
         if (env.get(key) == null || overwrite) {
-            env.put(key, value);
+            String environmentVariablePrefix = PluginImpl.get().getEnvironmentVariablePrefix();
+            if (environmentVariablePrefix == null) {
+                environmentVariablePrefix = "";
+            }
+            env.put(environmentVariablePrefix + key, value);
         }
     }
 

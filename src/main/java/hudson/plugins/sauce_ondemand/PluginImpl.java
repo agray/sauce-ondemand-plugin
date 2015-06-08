@@ -48,9 +48,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Persists the access credential to Sauce OnDemand.
+ * Persists the access credentials and common options for the Sauce plugin.
  *
  * @author Kohsuke Kawaguchi
+ * @author Ross Rowe
  */
 @Extension
 public class PluginImpl extends Plugin implements Describable<PluginImpl> {
@@ -71,7 +72,11 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
 
     private String sauceConnectDirectory;
 
+    private String sauceConnectOptions;
+
     private boolean disableStatusColumn;
+
+    private String environmentVariablePrefix;
 
     public String getUsername() {
         return username;
@@ -106,7 +111,10 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
         username = formData.getString("username");
         apiKey = Secret.fromString(formData.getString("apiKey"));
         sauceConnectDirectory = formData.getString("sauceConnectDirectory");
+        sauceConnectOptions = formData.getString("sauceConnectOptions");
+        environmentVariablePrefix = formData.getString("environmentVariablePrefix");
         save();
+
     }
 
     public DescriptorImpl getDescriptor() {
@@ -129,6 +137,14 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
         this.sauceConnectDirectory = sauceConnectDirectory;
     }
 
+    public String getEnvironmentVariablePrefix() {
+        return environmentVariablePrefix;
+    }
+
+    public void setEnvironmentVariablePrefix(String environmentVariablePrefix) {
+        this.environmentVariablePrefix = environmentVariablePrefix;
+    }
+
     @Extension
     public static final class DescriptorImpl extends Descriptor<PluginImpl> {
         @Override
@@ -143,7 +159,7 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
                 if (reuseSauceAuth && StringUtils.isBlank(credential.getUsername()) && StringUtils.isBlank(credential.getAccessKey())) {
                     return FormValidation.error("Unable to find ~/.sauce-ondemand file");
                 } else {
-                    String response = new JenkinsSauceREST(credential.getUsername(), credential.getAccessKey()).retrieveResults("tunnels");
+                    String response = new JenkinsSauceREST(credential.getUsername(), credential.getAccessKey()).retrieveResults("activity");
                     if (response != null && !response.equals("")) {
                         return FormValidation.ok("Success");
                     } else {
@@ -198,5 +214,13 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
 
     public void setDisableStatusColumn(boolean disableStatusColumn) {
         this.disableStatusColumn = disableStatusColumn;
+    }
+
+    public String getSauceConnectOptions() {
+        return sauceConnectOptions;
+    }
+
+    public void setSauceConnectOptions(String sauceConnectOptions) {
+        this.sauceConnectOptions = sauceConnectOptions;
     }
 }

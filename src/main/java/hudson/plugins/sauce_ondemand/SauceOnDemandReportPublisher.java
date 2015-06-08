@@ -86,13 +86,16 @@ public class SauceOnDemandReportPublisher extends TestDataPublisher {
     public SauceOnDemandReportFactory getTestData(AbstractBuild<?, ?> build, Launcher launcher, BuildListener buildListener, TestResult testResult) throws IOException, InterruptedException {
 
         SauceOnDemandBuildAction buildAction = getBuildAction(build);
-        processBuildOutput(build, buildAction, testResult);
-        if (buildAction.hasSauceOnDemandResults()) {
-            return SauceOnDemandReportFactory.INSTANCE;
-        } else {
-            buildListener.getLogger().println("The Sauce OnDemand plugin is configured, but no session IDs were found in the test output.");
-            return null;
+        if (buildAction != null) {
+            processBuildOutput(build, buildAction, testResult);
+            if (buildAction.hasSauceOnDemandResults()) {
+                return SauceOnDemandReportFactory.INSTANCE;
+            } else {
+                buildListener.getLogger().println("The Sauce OnDemand plugin is configured, but no session IDs were found in the test output.");
+                return null;
+            }
         }
+        return null;
     }
 
     /**
@@ -115,9 +118,11 @@ public class SauceOnDemandReportPublisher extends TestDataPublisher {
         buildAction.processSessionIds(null, array);
 
         //try the stdout for the tests
-        for (SuiteResult sr : testResult.getSuites()) {
-            for (CaseResult cr : sr.getCases()) {
-                buildAction.processSessionIds(cr, sr.getStdout(), cr.getStdout(), cr.getStdout(), cr.getStderr());
+        if (testResult != null) {
+            for (SuiteResult sr : testResult.getSuites()) {
+                for (CaseResult cr : sr.getCases()) {
+                    buildAction.processSessionIds(cr, sr.getStdout(), cr.getStdout(), cr.getStdout(), cr.getStderr());
+                }
             }
         }
 
@@ -159,6 +164,10 @@ public class SauceOnDemandReportPublisher extends TestDataPublisher {
      * @return Boolean indicating whether the test was successful.
      */
     private Boolean hasTestPassed(TestResult testResult, JobInformation job) {
+
+        if (testResult == null) {
+            return null;
+        }
 
         for (SuiteResult sr : testResult.getSuites()) {
             for (CaseResult cr : sr.getCases()) {
