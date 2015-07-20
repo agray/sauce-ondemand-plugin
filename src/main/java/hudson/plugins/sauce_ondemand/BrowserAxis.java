@@ -25,7 +25,6 @@ package hudson.plugins.sauce_ondemand;
 
 import com.saucelabs.ci.Browser;
 import com.saucelabs.ci.BrowserFactory;
-import com.saucelabs.common.SauceOnDemandAuthentication;
 import hudson.matrix.Axis;
 import hudson.util.Secret;
 
@@ -33,20 +32,18 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@link Axis} that configures {@code SELENIUM_DRIVER}.
+ * {@link Axis} that allows Sauce browsers to be selected for multi-configuration projects.
  *
  * @author Kohsuke Kawaguchi
+ * @author Ross Rowe
  */
 public abstract class BrowserAxis extends Axis {
 
-    public static final BrowserFactory BROWSER_FACTORY = BrowserFactory.getInstance(new JenkinsSauceREST(null, null));
+    /** Handles the retrieval of browsers from Sauce Labs. */
+    protected static final BrowserFactory BROWSER_FACTORY = BrowserFactory.getInstance(new JenkinsSauceREST(null, null));
 
     public BrowserAxis(List<String> values) {
         super("SELENIUM_DRIVER", values);
-    }
-
-    public boolean hasValue(String v) {
-        return getValues().contains(v);
     }
 
     /**
@@ -57,18 +54,11 @@ public abstract class BrowserAxis extends Axis {
      */
     public void addBuildVariable(String value, Map<String, String> map) {
         PluginImpl p = PluginImpl.get();
-        String username;
-        String accessKey;
-        if (p.isReuseSauceAuth()) {
-            SauceOnDemandAuthentication storedCredentials = null;
-            storedCredentials = new SauceOnDemandAuthentication();
-            username = storedCredentials.getUsername();
-            accessKey = storedCredentials.getAccessKey();
-        } else {
-            username = p.getUsername();
-            accessKey = Secret.toString(p.getApiKey());
 
-        }
+        String username = p.getUsername();
+        String accessKey = Secret.toString(p.getApiKey());
+
+
         Browser browserInstance = getBrowserForKey(value);
         if (browserInstance != null) {   // should never be null, but let's be defensive in case of downgrade.
             SauceEnvironmentUtil.outputEnvironmentVariablesForBrowser(map, browserInstance, username, accessKey);
@@ -90,6 +80,11 @@ public abstract class BrowserAxis extends Axis {
         }
     }
 
+    /**
+     *
+     * @param value
+     * @return
+     */
     protected abstract Browser getBrowserForKey(String value);
 
 

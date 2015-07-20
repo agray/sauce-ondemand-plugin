@@ -37,13 +37,21 @@ import hudson.util.FormValidation;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
-import org.codehaus.plexus.util.StringUtils;
+import org.apache.commons.codec.binary.Hex;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.bind.JavaScriptMethod;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -55,6 +63,15 @@ import java.util.logging.Logger;
  */
 @Extension
 public class PluginImpl extends Plugin implements Describable<PluginImpl> {
+
+    /**
+     *
+     */
+    private static final String HMAC_KEY = "HMACMD5";
+    /**
+     * Format for the date component of the HMAC.
+     */
+    private static final String DATE_FORMAT = "yyyy-MM-dd-HH";
 
     private static final Logger logger = Logger.getLogger(PluginImpl.class.getName());
 
@@ -86,6 +103,39 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
         return apiKey;
     }
 
+    public String calcHMAC(String id) throws NoSuchAlgorithmException, InvalidKeyException, UnsupportedEncodingException {
+        return calcHMAC(getUsername(), getApiKey().getPlainText(), id);
+    }
+
+    /**
+     * Creates a HMAC token which is used as part of the Javascript inclusion that embeds the Sauce results
+     *
+     * @param username  the Sauce user id
+     * @param accessKey the Sauce access key
+     * @param jobId     the Sauce job id
+     * @return the HMAC token
+     * @throws java.security.NoSuchAlgorithmException
+     *
+     * @throws java.security.InvalidKeyException
+     *
+     * @throws java.io.UnsupportedEncodingException
+     *
+     */
+    public String calcHMAC(String username, String accessKey, String jobId) throws NoSuchAlgorithmException, InvalidKeyException, UnsupportedEncodingException {
+        Calendar calendar = Calendar.getInstance();
+
+        SimpleDateFormat format = new SimpleDateFormat(DATE_FORMAT);
+        format.setTimeZone(TimeZone.getTimeZone("UTC"));
+        String key = username + ":" + accessKey + ":" + format.format(calendar.getTime());
+        byte[] keyBytes = key.getBytes();
+        SecretKeySpec sks = new SecretKeySpec(keyBytes, HMAC_KEY);
+        Mac mac = Mac.getInstance(sks.getAlgorithm());
+        mac.init(sks);
+        byte[] hmacBytes = mac.doFinal(jobId.getBytes());
+        byte[] hexBytes = new Hex().encode(hmacBytes);
+        return new String(hexBytes, "ISO-8859-1");
+    }
+
     @Override
     public void start() throws Exception {
         // backward compatibility with the legacy class name
@@ -106,7 +156,7 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
 
     @Override
     public void configure(StaplerRequest req, JSONObject formData) throws IOException, ServletException, Descriptor.FormException {
-        reuseSauceAuth = formData.getBoolean("reuseSauceAuth");
+
         disableStatusColumn = formData.getBoolean("disableStatusColumn");
         username = formData.getString("username");
         apiKey = Secret.fromString(formData.getString("apiKey"));
@@ -123,10 +173,6 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
 
     public static PluginImpl get() {
         return Jenkins.getInstance().getPlugin(PluginImpl.class);
-    }
-
-    public boolean isReuseSauceAuth() {
-        return reuseSauceAuth;
     }
 
     public String getSauceConnectDirectory() {
@@ -152,20 +198,18 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
             return "Sauce OnDemand";
         }
 
-        public FormValidation doValidate(@QueryParameter String username, @QueryParameter String apiKey, @QueryParameter boolean disableStatusColumn, @QueryParameter boolean reuseSauceAuth) {
+        public FormValidation doValidate(@QueryParameter String username, @QueryParameter String apiKey, @QueryParameter boolean disableStatusColumn) {
             try {
-                SauceOnDemandAuthentication credential = reuseSauceAuth ? new SauceOnDemandAuthentication() : new SauceOnDemandAuthentication(username, Secret.toString(Secret.fromString(apiKey)));
+                SauceOnDemandAuthentication credential = new SauceOnDemandAuthentication(username, Secret.toString(Secret.fromString(apiKey)));
                 //we aren't interested in the results of the REST API call - just the fact that we executed without an error is enough to verify the connection
-                if (reuseSauceAuth && StringUtils.isBlank(credential.getUsername()) && StringUtils.isBlank(credential.getAccessKey())) {
-                    return FormValidation.error("Unable to find ~/.sauce-ondemand file");
-                } else {
+
                     String response = new JenkinsSauceREST(credential.getUsername(), credential.getAccessKey()).retrieveResults("activity");
                     if (response != null && !response.equals("")) {
                         return FormValidation.ok("Success");
                     } else {
                         return FormValidation.error("Failed to connect to Sauce OnDemand");
                     }
-                }
+
             } catch (Exception e) {
                 return FormValidation.error(e, "Failed to connect to Sauce OnDemand");
             }
