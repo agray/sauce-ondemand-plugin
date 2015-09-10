@@ -46,6 +46,11 @@ public abstract class BrowserAxis extends Axis {
         super("SELENIUM_DRIVER", values);
     }
 
+    public boolean hasValue(String key)
+    {
+        return getValues().contains(key);
+    }
+
     /**
      * Adds the browser URI to the environment map.  Will override any values set in {@link SauceOnDemandBuildWrapper#setUp(hudson.model.AbstractBuild, hudson.Launcher, hudson.model.BuildListener)}
      *
@@ -61,7 +66,7 @@ public abstract class BrowserAxis extends Axis {
 
         Browser browserInstance = getBrowserForKey(value);
         if (browserInstance != null) {   // should never be null, but let's be defensive in case of downgrade.
-            SauceEnvironmentUtil.outputEnvironmentVariablesForBrowser(map, browserInstance, username, accessKey);
+            SauceEnvironmentUtil.outputEnvironmentVariablesForBrowser(map, browserInstance, username, accessKey, false, null);
             StringBuilder builder = new StringBuilder();
             builder.append("-D").append(getName()).append('=').append(browserInstance.getUri(username, accessKey)).
                     append("-D").append(SauceOnDemandBuildWrapper.SELENIUM_PLATFORM).append('=').append(browserInstance.getOs()).

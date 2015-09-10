@@ -8,7 +8,6 @@ import hudson.matrix.MatrixRun;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import org.codehaus.plexus.archiver.zip.ZipArchiver;
-import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.kohsuke.stapler.bind.JavaScriptMethod;
 
 import java.io.File;
@@ -105,7 +104,7 @@ public class SauceOnDemandProjectAction extends AbstractAction {
             } else {
                 SauceOnDemandBuildAction buildAction = build.getAction(SauceOnDemandBuildAction.class);
                 if (buildAction == null) {
-                    logger.info("No Sauce Build Action found for " + build.toString() + " adding a new one");
+                    logger.fine("No Sauce Build Action found for " + build.toString() + " adding a new one");
                     return Collections.emptyList();
                 }
                 return Collections.singletonList(buildAction);
@@ -124,7 +123,7 @@ public class SauceOnDemandProjectAction extends AbstractAction {
             }
             return allJobs;
         }
-        logger.info("No Sauce jobs found");
+        logger.fine("No Sauce jobs found");
         return Collections.emptyList();
     }
 
@@ -160,8 +159,6 @@ public class SauceOnDemandProjectAction extends AbstractAction {
             archiver.createArchive();
             return "Generation of Sauce support zip file was successful, file is located at: " + destFile.getAbsolutePath();
 
-        } catch (ComponentLookupException e) {
-            logger.log(Level.WARNING, "Unable to retrieve Sauce Connect manager", e);
         } catch (IOException e) {
             logger.log(Level.WARNING, "Unable to create zip file", e);
         }

@@ -28,7 +28,9 @@ import java.util.regex.Pattern;
  */
 public class SauceOnDemandBuildAction extends AbstractAction {
 
-    /** Logger instance. */
+    /**
+     * Logger instance.
+     */
     private static final Logger logger = Logger.getLogger(SauceOnDemandBuildAction.class.getName());
 
     /**
@@ -99,7 +101,6 @@ public class SauceOnDemandBuildAction extends AbstractAction {
     /**
      * Invokes the Sauce REST API to retrieve the details for the jobs the user has access to.  Iterates over the jobs
      * and attempts to find the job that has a 'build' field matching the build key/number.
-     *
      */
     public List<JobInformation> retrieveJobIdsFromSauce() throws IOException, JSONException, InvalidKeyException, NoSuchAlgorithmException {
         //invoke Sauce Rest API to find plan results with those values
@@ -120,23 +121,7 @@ public class SauceOnDemandBuildAction extends AbstractAction {
                 JSONObject jobData = jobResults.getJSONObject(i);
                 String jobId = jobData.getString("id");
                 JobInformation information = new JenkinsJobInformation(jobId, PluginImpl.get().calcHMAC(username, accessKey, jobId));
-                String status = jobData.getString("passed");
-                information.setStatus(status);
-                String jobName = jobData.getString("name");
-                if (jobName != null) {
-                    information.setHasJobName(true);
-                    information.setName(jobName);
-                }
-                String build = jobData.getString("build");
-                if (build != null) {
-                    information.setHasBuildNumber(true);
-                }
-                information.setOs(jobData.getString("os"));
-                information.setBrowser(jobData.getString("browser"));
-                information.setVersion(jobData.getString("browser_short_version"));
-                information.setVideoUrl(jobData.getString("video_url"));
-                information.setLogUrl(jobData.getString("log_url"));
-
+                information.populateFromJson(jobData);
                 jobInformation.add(information);
             }
             //the list of results retrieved from the Sauce REST API is last-first, so reverse the list
@@ -166,12 +151,13 @@ public class SauceOnDemandBuildAction extends AbstractAction {
     /**
      * Processes the log output, and for lines which are in the valid log format, add a new {@link JobInformation}
      * instance to the {@link #jobInformation} list.
+     *
      * @param caseResult test results being processed, can be null
-     * @param output lines of output to be processed, not null
+     * @param output     lines of output to be processed, not null
      */
     public void processSessionIds(CaseResult caseResult, String... output) {
 
-        logger.log(Level.FINE, caseResult == null ? "Parsing Sauce Session ids in stdout": "Parsing Sauce Session ids in test results");
+        logger.log(Level.FINE, caseResult == null ? "Parsing Sauce Session ids in stdout" : "Parsing Sauce Session ids in test results");
         SauceREST sauceREST = new JenkinsSauceREST(username, accessKey);
 
         for (String text : output) {
@@ -194,12 +180,7 @@ public class SauceOnDemandBuildAction extends AbstractAction {
                     String jsonResponse = sauceREST.getJobInfo(jobId);
                     if (!jsonResponse.equals("")) {
                         JSONObject job = new JSONObject(jsonResponse);
-                        boolean hasJobName = job.has("name") && !job.isNull("name");
-                        jobInfo.setHasJobName(hasJobName);
-                        if (hasJobName) {
-                            jobInfo.setName(job.getString("name"));
-                        }
-                        jobInfo.setHasBuildNumber(job.has("build") && !job.isNull("build"));
+                        jobInfo.populateFromJson(job);
                     }
                     if (!jobInfo.isHasJobName() && jobName != null) {
                         jobInfo.setName(jobName);

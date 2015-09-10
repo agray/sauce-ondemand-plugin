@@ -160,15 +160,14 @@ public class SauceBuildWrapperTest {
                 null,
                 "-i ${BUILD_NUMBER}",
                 null,
-                true,
-                true,
+                false,
                 false,
                 true,
                 null,
                 null,
                 false,
                 null,
-                false,
+//                false,
                 false);
     }
 
